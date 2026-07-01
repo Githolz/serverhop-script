@@ -5,29 +5,32 @@ local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 local placeId = game.PlaceId
 
-local url = string.format(
-    "https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100",
-    placeId
+local data = HttpService:JSONDecode(
+    game:HttpGet(
+        ("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100")
+        :format(placeId)
+    )
 )
 
-local success, response = pcall(function()
-    return game:HttpGet(url)
-end)
+local validServers = {}
 
-if success then
-    local data = HttpService:JSONDecode(response)
-
-    for _, server in ipairs(data.data) do
-        -- Find a server that isn't full and isn't the current server
-        if server.playing < server.maxPlayers and server.id ~= game.JobId then
-            TeleportService:TeleportToPlaceInstance(
-                placeId,
-                server.id,
-                player
-            )
-            break
-        end
+for _, server in ipairs(data.data) do
+    if server.id ~= game.JobId
+       and server.playing >= 1
+       and server.playing <= 8
+       and server.playing < server.maxPlayers then
+        table.insert(validServers, server)
     end
+end
+
+if #validServers > 0 then
+    local chosen = validServers[math.random(1, #validServers)]
+
+    TeleportService:TeleportToPlaceInstance(
+        placeId,
+        chosen.id,
+        player
+    )
 else
-    warn("Failed to retrieve server list.")
+    warn("No servers with 1-8 players found.")
 end
